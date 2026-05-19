@@ -24,12 +24,17 @@ export function loadFaceModels(): Promise<FaceApi> {
   return loadPromise;
 }
 
+/** face box, normalized 0..1 against the video frame */
+export type FaceBox = { x: number; y: number; w: number; h: number };
+
 export type Detection = {
   expression: Expression;
   /** probability of the chosen expression, 0..1 */
   confidence: number;
   /** rough arousal proxy 0..100 derived from the expression mix */
   arousal: number;
+  /** where the face is, for the rPPG forehead ROI */
+  box: FaceBox;
 };
 
 // face-api emits: neutral happy sad angry fearful disgusted surprised
@@ -80,9 +85,19 @@ export async function detectExpression(
     }
   }
 
+  const b = res.detection.box;
+  const vw = video.videoWidth || 1;
+  const vh = video.videoHeight || 1;
+
   return {
     expression: mapExpression(bestLabel),
     confidence: best,
     arousal: Math.round(Math.max(0, Math.min(100, arousal))),
+    box: {
+      x: Math.max(0, Math.min(1, b.x / vw)),
+      y: Math.max(0, Math.min(1, b.y / vh)),
+      w: Math.max(0, Math.min(1, b.width / vw)),
+      h: Math.max(0, Math.min(1, b.height / vh)),
+    },
   };
 }
