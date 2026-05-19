@@ -708,6 +708,21 @@ export default function ChatPoc() {
         <div className="mt-4">
           <SiteNav active="chat" />
         </div>
+        <ol className={cn("mt-6 flex w-full gap-2 text-left text-[10px] text-zinc-500", mono)}>
+          {[
+            ["01", "Type a message"],
+            ["02", "Camera reads your expression + pulse"],
+            ["03", "They see how you actually feel"],
+          ].map(([n, t]) => (
+            <li
+              key={n}
+              className="flex-1 rounded-lg border border-zinc-200 p-2.5"
+            >
+              <span className="block text-zinc-900">{n}</span>
+              <span className="mt-1 block leading-snug">{t}</span>
+            </li>
+          ))}
+        </ol>
       </div>
       <IphoneShell>
         {/* app header */}
