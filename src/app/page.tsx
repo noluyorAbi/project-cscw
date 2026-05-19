@@ -651,6 +651,34 @@ export default function ChatPoc() {
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center bg-white px-4 py-12 [background-image:radial-gradient(ellipse_at_50%_0,#f4f4f5,#fff_60%)]">
+      <div className="mb-8 flex w-full max-w-[404px] flex-col items-center text-center">
+        <p className={cn("text-[10px] uppercase tracking-[0.25em] text-zinc-400", mono)}>
+          MMI2 · CSCW · LMU Munich
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-zinc-900">
+          Emotion-Aware Chat
+        </h1>
+        <p className="mt-2 text-[14px] text-zinc-500">
+          Every message carries the sender&apos;s expression and heart rate.
+        </p>
+        <nav className={cn("mt-4 flex gap-2 text-[12px]", mono)}>
+          <span className="rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-2 font-medium text-white">
+            CHAT
+          </span>
+          <Link
+            href="/idea"
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-zinc-600 hover:border-zinc-900 hover:text-zinc-900"
+          >
+            CANVAS
+          </Link>
+          <Link
+            href="/about"
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-zinc-600 hover:border-zinc-900 hover:text-zinc-900"
+          >
+            ABOUT
+          </Link>
+        </nav>
+      </div>
       <IphoneShell>
         {/* app header */}
         <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-5 py-2.5">
@@ -1058,14 +1086,6 @@ export default function ChatPoc() {
           text only, the control the canvas (&ldquo;2 cameras on → no
           control&rdquo;) never had.
         </p>
-        <nav className={cn("mt-3 flex justify-center gap-4 text-[11px]", mono)}>
-          <Link href="/idea" className="text-zinc-500 hover:text-zinc-900">
-            CANVAS
-          </Link>
-          <Link href="/about" className="text-zinc-500 hover:text-zinc-900">
-            ABOUT
-          </Link>
-        </nav>
       </div>
     </main>
   );
