@@ -70,17 +70,45 @@ export type ChatMessage = {
   ts: number;
 };
 
-/** canned replies for the simulated other person ("Mara"). */
-export const MARA_REPLIES: string[] = [
-  "wait, are you okay?",
-  "your heart is racing 😳",
-  "haha I can literally see you smiling",
-  "ok now I feel calmer too",
-  "that face says everything tbh",
-  "hold on, breathe — I'm here",
-  "you seem stressed, want to call?",
-  "I felt that one. for real.",
+/** Mara reacts to the emotion she receives, not at random. */
+const REPLIES_BY_EXPRESSION: Record<ExpressionKey, string[]> = {
+  happy: [
+    "haha I can literally see you smiling 😄",
+    "ok that grin is contagious",
+    "love this energy, tell me everything",
+  ],
+  calm: [
+    "you look so chill rn",
+    "ok now I feel calmer too",
+    "this is nice, no rush",
+  ],
+  neutral: [
+    "hm, hard to read you on this one",
+    "go on, I'm listening",
+    "ok — and how do you feel about it?",
+  ],
+  tense: [
+    "hey, you seem tense — want to call?",
+    "hold on, breathe, I'm here",
+    "that face says you're stressed. talk to me",
+  ],
+  sad: [
+    "oh no… are you okay? 🫂",
+    "I can tell that one hurt. I'm here",
+    "do you want to talk about it for real?",
+  ],
+};
+
+const GENERIC_REPLIES = [
+  "tell me more",
+  "I'm here, what's up?",
+  "go on…",
 ];
+
+export function maraReply(key?: ExpressionKey): string {
+  const pool = key ? REPLIES_BY_EXPRESSION[key] : GENERIC_REPLIES;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10);

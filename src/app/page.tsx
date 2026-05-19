@@ -20,7 +20,7 @@ import { Pulse } from "@/components/pulse";
 import { cn } from "@/lib/utils";
 import {
   type ChatMessage,
-  MARA_REPLIES,
+  maraReply,
   sensedBpm,
   sensedExpression,
   stressToBpm,
@@ -442,6 +442,7 @@ export default function ChatPoc() {
       };
     }
 
+    const myKey = mine.expression?.key;
     setMessages((m) => [...m, mine]);
     setDraft("");
     setTyping(true);
@@ -456,7 +457,7 @@ export default function ChatPoc() {
           {
             id: uid(),
             author: "mara",
-            text: MARA_REPLIES[Math.floor(Math.random() * MARA_REPLIES.length)],
+            text: maraReply(myKey),
             expression: sensedExpression(reactStress),
             bpm: shareHeartbeat ? rbpm : undefined,
             ts: Date.now(),
@@ -545,6 +546,10 @@ export default function ChatPoc() {
         {/* messages */}
         <div
           ref={scrollRef}
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-label="conversation with Mara"
           className="flex flex-1 flex-col gap-2.5 overflow-y-auto bg-zinc-50 px-4 py-4"
         >
           {messages.map((m) => {
@@ -572,7 +577,20 @@ export default function ChatPoc() {
                   )}
                   <p className="px-3 py-2">{m.text}</p>
                 </div>
+                <span className="sr-only" suppressHydrationWarning>
+                  {mine ? "You" : "Mara"}
+                  {m.expression
+                    ? `, ${m.expression.label}${
+                        typeof m.confidence === "number"
+                          ? ` ${Math.round(m.confidence * 100)} percent`
+                          : ""
+                      }`
+                    : ""}
+                  {typeof m.bpm === "number" ? `, ${m.bpm} bpm` : ""} at{" "}
+                  {fmtTime(m.ts)}
+                </span>
                 <div
+                  aria-hidden
                   className={cn(
                     "flex items-center gap-1.5 px-1 text-[10px] text-zinc-500",
                     mono,
