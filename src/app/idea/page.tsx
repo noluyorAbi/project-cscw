@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { SiteNav } from "@/components/site-nav";
 
 const mono = "font-[family-name:var(--font-geist-mono)]";
 
@@ -84,20 +84,7 @@ export default function IdeaCanvas() {
               Emotion-Aware Chat
             </h1>
           </div>
-          <nav className={`flex gap-2 text-[12px] ${mono}`}>
-            <Link
-              href="/about"
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-zinc-600 hover:border-zinc-900 hover:text-zinc-900"
-            >
-              ABOUT
-            </Link>
-            <Link
-              href="/"
-              className="rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-2 font-medium text-white"
-            >
-              OPEN THE POC →
-            </Link>
-          </nav>
+          <SiteNav active="canvas" />
         </div>
       </header>
 
