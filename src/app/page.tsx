@@ -224,6 +224,7 @@ export default function ChatPoc() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<FaceBox | null>(null);
   const ppgRef = useRef<PpgEstimator | null>(null);
+  const prefsLoaded = useRef(false);
 
   // bpm priority: real camera rPPG > expression-arousal proxy > slider
   const liveBpm =
@@ -423,8 +424,24 @@ export default function ChatPoc() {
         }
         if (localStorage.getItem("cscw-cam-consent") === "1")
           setCamConsent(true);
+        const p = localStorage.getItem("cscw-prefs");
+        if (p) {
+          const prefs = JSON.parse(p) as {
+            faceSharing?: boolean;
+            shareHeartbeat?: boolean;
+            showTrend?: boolean;
+          };
+          if (typeof prefs.faceSharing === "boolean")
+            setFaceSharing(prefs.faceSharing);
+          if (typeof prefs.shareHeartbeat === "boolean")
+            setShareHeartbeat(prefs.shareHeartbeat);
+          if (typeof prefs.showTrend === "boolean")
+            setShowTrend(prefs.showTrend);
+        }
       } catch {
         /* ignore corrupt storage */
+      } finally {
+        prefsLoaded.current = true;
       }
     });
     return () => {
@@ -439,6 +456,20 @@ export default function ChatPoc() {
       /* quota / unavailable — non-fatal for a PoC */
     }
   }, [messages]);
+
+  // persist preferences, but only after the initial load so defaults
+  // don't clobber stored values on first commit
+  useEffect(() => {
+    if (!prefsLoaded.current) return;
+    try {
+      localStorage.setItem(
+        "cscw-prefs",
+        JSON.stringify({ faceSharing, shareHeartbeat, showTrend }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [faceSharing, shareHeartbeat, showTrend]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -573,8 +604,11 @@ export default function ChatPoc() {
       <IphoneShell>
         {/* app header */}
         <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-5 py-2.5">
-          <div className="grid size-9 place-items-center rounded-full bg-zinc-900 text-sm text-white">
-            M
+          <div
+            className="grid size-9 place-items-center rounded-full bg-zinc-900 text-base text-white ring-2 ring-zinc-200"
+            title={maraLast?.expression?.label ?? "Mara"}
+          >
+            {maraLast?.expression ? maraLast.expression.emoji : "M"}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[15px] font-semibold leading-tight text-zinc-900">
