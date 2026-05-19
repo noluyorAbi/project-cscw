@@ -476,11 +476,15 @@ export default function ChatPoc() {
     }
   }, [faceSharing, shareHeartbeat, showTrend]);
 
+  // only auto-scroll if the user is already near the bottom — don't yank
+  // them down while they're reading older messages
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    const el = scrollRef.current;
+    if (!el) return;
+    const nearBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (nearBottom)
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, typing]);
 
   const clearChat = useCallback(() => {
