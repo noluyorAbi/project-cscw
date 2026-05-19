@@ -205,6 +205,7 @@ export default function ChatPoc() {
   const [typing, setTyping] = useState(false);
   const [hr, setHr] = useState<{ bpm: number; quality: number } | null>(null);
   const [showTrend, setShowTrend] = useState(false);
+  const [camDenied, setCamDenied] = useState(false);
   const [camConsent, setCamConsent] = useState(false);
   const [askConsent, setAskConsent] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -266,6 +267,14 @@ export default function ChatPoc() {
     setCameraOn(true);
   }, []);
 
+  const retryDetection = useCallback(() => {
+    if (!cameraOn) return;
+    setFaceStatus("loading");
+    loadFaceModels()
+      .then(() => setFaceStatus("ready"))
+      .catch(() => setFaceStatus("error"));
+  }, [cameraOn]);
+
   const toggleHeartbeat = useCallback(() => {
     setShareHeartbeat((prev) => {
       if (prev) {
@@ -288,6 +297,7 @@ export default function ChatPoc() {
           return;
         }
         streamRef.current = s;
+        setCamDenied(false);
         if (videoRef.current) videoRef.current.srcObject = s;
         try {
           await loadFaceModels();
@@ -300,6 +310,7 @@ export default function ChatPoc() {
         if (!cancelled) {
           setCameraOn(false);
           setFaceStatus("off");
+          setCamDenied(true);
         }
       });
     return () => {
@@ -804,10 +815,21 @@ export default function ChatPoc() {
         {/* controls */}
         <div className="space-y-2.5 border-t border-zinc-200 bg-white px-4 pb-7 pt-3">
           <div className={cn("flex items-center justify-between text-[11px]", mono)}>
-            <span className="inline-flex items-center gap-1.5 text-zinc-500">
-              <span className={cn("size-1.5 rounded-full", pill.dot)} />
-              {pill.label}
-            </span>
+            {faceStatus === "error" ? (
+              <button
+                type="button"
+                onClick={retryDetection}
+                className="inline-flex items-center gap-1.5 text-red-600 hover:underline"
+              >
+                <span className={cn("size-1.5 rounded-full", pill.dot)} />
+                {pill.label} · RETRY
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-zinc-500">
+                <span className={cn("size-1.5 rounded-full", pill.dot)} />
+                {pill.label}
+              </span>
+            )}
             <span className="flex items-center gap-2 text-zinc-900">
               <span className="text-sm">{liveExpr.emoji}</span>
               <span>{liveExpr.label}</span>
@@ -907,6 +929,12 @@ export default function ChatPoc() {
               {shareHeartbeat ? "PULSE ON" : "PULSE OFF"}
             </button>
           </div>
+
+          {camDenied && !cameraOn && (
+            <p className={cn("text-center text-[10px] text-red-600", mono)}>
+              camera blocked — allow it in your browser, then tap CAMERA again
+            </p>
+          )}
 
           <div className="flex items-center gap-2">
             <input
