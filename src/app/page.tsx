@@ -5,8 +5,6 @@ import Link from "next/link";
 import {
   Activity,
   BatteryFull,
-  Camera,
-  CameraOff,
   Download,
   Eye,
   EyeOff,
@@ -221,6 +219,11 @@ export default function ChatPoc() {
   const boxRef = useRef<FaceBox | null>(null);
   const ppgRef = useRef<PpgEstimator | null>(null);
   const prefsLoaded = useRef(false);
+  // text waiting to be sent once the auto-started camera is ready
+  const pendingSendRef = useRef<string | null>(null);
+  const postMessageRef = useRef<
+    ((text: string, photo?: string) => void) | null
+  >(null);
 
   // bpm priority: real camera rPPG > expression-arousal proxy > slider
   const liveBpm =
@@ -242,20 +245,6 @@ export default function ChatPoc() {
     ppgRef.current?.reset();
   }, []);
 
-  // first camera use is gated by an explicit on-device consent dialog
-  const toggleCamera = useCallback(() => {
-    if (cameraOn) {
-      stopCamera();
-      return;
-    }
-    if (!camConsent) {
-      setAskConsent(true);
-      return;
-    }
-    setFaceStatus("loading");
-    setCameraOn(true);
-  }, [cameraOn, camConsent, stopCamera]);
-
   const acceptConsent = useCallback(() => {
     setCamConsent(true);
     try {
@@ -266,6 +255,15 @@ export default function ChatPoc() {
     setAskConsent(false);
     setFaceStatus("loading");
     setCameraOn(true);
+  }, []);
+
+  const declineConsent = useCallback(() => {
+    setAskConsent(false);
+    const pending = pendingSendRef.current;
+    if (pending) {
+      pendingSendRef.current = null;
+      postMessageRef.current?.(pending); // send as text only
+    }
   }, []);
 
   const retryDetection = useCallback(() => {
@@ -312,6 +310,12 @@ export default function ChatPoc() {
           setCameraOn(false);
           setFaceStatus("off");
           setCamDenied(true);
+          // camera blocked — don't strand the queued message
+          const pending = pendingSendRef.current;
+          if (pending) {
+            pendingSendRef.current = null;
+            postMessageRef.current?.(pending);
+          }
         }
       });
     return () => {
@@ -532,11 +536,11 @@ export default function ChatPoc() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (zoomPhoto) setZoomPhoto(null);
-      else if (askConsent) setAskConsent(false);
+      else if (askConsent) declineConsent();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [zoomPhoto, askConsent]);
+  }, [zoomPhoto, askConsent, declineConsent]);
 
   const capturePhoto = useCallback((): string | undefined => {
     const v = videoRef.current;
@@ -621,13 +625,14 @@ export default function ChatPoc() {
     [faceSharing, cameraOn, detected, stress, shareHeartbeat, hr],
   );
 
-  function send() {
-    const text = draft.trim();
-    if (!text || countdown !== null) return;
-    setDraft("");
+  // keep a stable ref so the webcam effect can post a stranded message
+  useEffect(() => {
+    postMessageRef.current = postMessage;
+  }, [postMessage]);
 
-    // camera path: 1 s attention countdown -> flash -> capture -> post
-    if (faceSharing && cameraOn) {
+  // 1 s attention countdown -> flash -> capture -> post
+  const runCapture = useCallback(
+    (text: string) => {
       setCountdown(1);
       window.setTimeout(() => {
         setCountdown(null);
@@ -636,9 +641,47 @@ export default function ChatPoc() {
         window.setTimeout(() => setFlash(false), 160);
         postMessage(text, photo);
       }, 1000);
+    },
+    [capturePhoto, postMessage],
+  );
+
+  // once the auto-started camera is ready, capture the queued message
+  useEffect(() => {
+    if (faceStatus !== "ready" && faceStatus !== "searching") return;
+    const pending = pendingSendRef.current;
+    if (!pending) return;
+    pendingSendRef.current = null;
+    runCapture(pending);
+  }, [faceStatus, runCapture]);
+
+  function send() {
+    const text = draft.trim();
+    if (!text || countdown !== null || pendingSendRef.current) return;
+    setDraft("");
+
+    // private mode → text only, nothing sensed
+    if (!faceSharing) {
+      postMessage(text);
       return;
     }
-    postMessage(text);
+    // camera already live → capture now
+    if (cameraOn && (faceStatus === "ready" || faceStatus === "searching")) {
+      runCapture(text);
+      return;
+    }
+    // camera blocked earlier → fall back to the slider simulation
+    if (camDenied) {
+      postMessage(text);
+      return;
+    }
+    // auto-start the camera; capture fires when it's ready
+    pendingSendRef.current = text;
+    if (!camConsent) {
+      setAskConsent(true);
+      return;
+    }
+    setFaceStatus("loading");
+    setCameraOn(true);
   }
 
   const statusPill: Record<FaceStatus, { label: string; dot: string }> = {
@@ -907,10 +950,17 @@ export default function ChatPoc() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setFaceSharing((v) => !v)}
+              onClick={() =>
+                setFaceSharing((prev) => {
+                  const next = !prev;
+                  if (!next) stopCamera(); // going private releases the webcam
+                  return next;
+                })
+              }
+              aria-pressed={faceSharing}
               className={cn(
                 "inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-[11px] font-medium transition-colors",
                 mono,
@@ -920,21 +970,7 @@ export default function ChatPoc() {
               )}
             >
               {faceSharing ? <Eye size={13} /> : <EyeOff size={13} />}
-              {faceSharing ? "SHARING" : "PRIVATE"}
-            </button>
-            <button
-              type="button"
-              onClick={toggleCamera}
-              className={cn(
-                "inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-[11px] font-medium transition-colors",
-                mono,
-                cameraOn
-                  ? "border-zinc-900 bg-zinc-900 text-white"
-                  : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-900",
-              )}
-            >
-              {cameraOn ? <Camera size={13} /> : <CameraOff size={13} />}
-              CAMERA
+              {faceSharing ? "SHARE FACE" : "TEXT ONLY"}
             </button>
             <button
               type="button"
@@ -952,10 +988,16 @@ export default function ChatPoc() {
               {shareHeartbeat ? "PULSE ON" : "PULSE OFF"}
             </button>
           </div>
+          <p className={cn("text-center text-[10px] text-zinc-400", mono)}>
+            {faceSharing
+              ? "camera opens automatically when you send"
+              : "messages are text only"}
+          </p>
 
           {camDenied && !cameraOn && (
             <p className={cn("text-center text-[10px] text-red-600", mono)}>
-              camera blocked — allow it in your browser, then tap CAMERA again
+              camera blocked — allow it in your browser; sending uses text +
+              the slider until then
             </p>
           )}
 
@@ -1036,7 +1078,7 @@ export default function ChatPoc() {
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setAskConsent(false)}
+                  onClick={declineConsent}
                   className={cn(
                     "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-[12px] font-medium text-zinc-600 hover:border-zinc-900",
                     mono,
