@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  Activity,
   BatteryFull,
   Camera,
   CameraOff,
@@ -85,6 +86,54 @@ function IphoneShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Sparkline of the user's own heart rate across the conversation. */
+function EmotionTimeline({ data }: { data: ChatMessage[] }) {
+  const pts = data
+    .filter((m) => m.author === "me" && typeof m.bpm === "number")
+    .slice(-24);
+  if (pts.length < 2) {
+    return (
+      <p className={cn("py-3 text-center text-[10px] text-zinc-400", mono)}>
+        send a few messages to build your emotion trend
+      </p>
+    );
+  }
+  const bpms = pts.map((m) => m.bpm as number);
+  const lo = Math.min(...bpms);
+  const hi = Math.max(...bpms);
+  const span = Math.max(1, hi - lo);
+  const W = 100;
+  const H = 30;
+  const xy = bpms.map((b, i) => {
+    const x = (i / (bpms.length - 1)) * W;
+    const y = H - 3 - ((b - lo) / span) * (H - 6);
+    return [x, y] as const;
+  });
+  const path = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const last = pts[pts.length - 1];
+  return (
+    <div className="space-y-1.5 px-1 py-2">
+      <div className={cn("flex items-center justify-between text-[10px] text-zinc-500", mono)}>
+        <span>YOUR HR · {pts.length} MSG</span>
+        <span>
+          {lo}–{hi} bpm · now {last.bpm}
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-10 w-full">
+        <path d={path} fill="none" stroke="#18181b" strokeWidth={1.2} vectorEffect="non-scaling-stroke" />
+        <circle cx={xy[xy.length - 1][0]} cy={xy[xy.length - 1][1]} r={2} fill="#f43f5e" />
+      </svg>
+      <div className="flex justify-between">
+        {pts.slice(-12).map((m) => (
+          <span key={m.id} className="text-[11px] leading-none" title={m.expression?.label}>
+            {m.expression?.emoji ?? "·"}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ChatPoc() {
   const [messages, setMessages] = useState<ChatMessage[]>(seed);
   const [draft, setDraft] = useState("");
@@ -95,6 +144,7 @@ export default function ChatPoc() {
   const [detected, setDetected] = useState<Detection | null>(null);
   const [typing, setTyping] = useState(false);
   const [hr, setHr] = useState<{ bpm: number; quality: number } | null>(null);
+  const [showTrend, setShowTrend] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -422,6 +472,18 @@ export default function ChatPoc() {
           </div>
           <button
             type="button"
+            onClick={() => setShowTrend((v) => !v)}
+            aria-label="toggle emotion trend"
+            aria-pressed={showTrend}
+            className={cn(
+              "rounded-md p-1.5 hover:bg-zinc-100",
+              showTrend ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-900",
+            )}
+          >
+            <Activity size={15} />
+          </button>
+          <button
+            type="button"
             onClick={clearChat}
             aria-label="clear chat"
             className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
@@ -502,6 +564,12 @@ export default function ChatPoc() {
             </div>
           )}
         </div>
+
+        {showTrend && (
+          <div className="border-t border-zinc-200 bg-white px-4">
+            <EmotionTimeline data={messages} />
+          </div>
+        )}
 
         {/* controls */}
         <div className="space-y-2.5 border-t border-zinc-200 bg-white px-4 pb-7 pt-3">
