@@ -65,53 +65,46 @@ const seed = (): ChatMessage[] => [
 type FaceStatus = "off" | "loading" | "ready" | "searching" | "error";
 
 /** iPhone-15-Pro-ish shell: titanium rail, side buttons, Dynamic Island.
- *  Tilts in 3D toward the cursor on hover (skipped if reduced-motion). */
+ *  Static; scales down to fit short viewports. */
 function IphoneShell({ children }: { children: React.ReactNode }) {
-  const [tilt, setTilt] = useState({ rx: 0, ry: 0, active: false });
+  const W = 404;
+  const H = 838;
+  const [fit, setFit] = useState(1);
 
-  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    )
-      return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width - 0.5;
-    const py = (e.clientY - r.top) / r.height - 0.5;
-    setTilt({ rx: -py * 14, ry: px * 16, active: true });
-  };
-  const onLeave = () => setTilt({ rx: 0, ry: 0, active: false });
+  useEffect(() => {
+    const recalc = () =>
+      setFit(Math.min(1, Math.max(0.55, (window.innerHeight - 120) / H)));
+    recalc();
+    window.addEventListener("resize", recalc);
+    return () => window.removeEventListener("resize", recalc);
+  }, []);
 
   return (
-    <div
-      className="[perspective:1600px]"
-      onMouseMove={onMove}
-      onMouseLeave={onLeave}
-    >
+    <div className="relative" style={{ width: W * fit, height: H * fit }}>
       <div
-        className="relative h-[838px] w-[404px] rounded-[3.6rem] [transform-style:preserve-3d]"
+        className="absolute left-0 top-0 rounded-[3.6rem] bg-gradient-to-br from-zinc-200 via-zinc-500 to-zinc-800 p-[3px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.45)] ring-1 ring-white/20"
         style={{
-          transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) scale(${tilt.active ? 1.03 : 1})`,
-          transition: tilt.active
-            ? "transform 80ms ease-out, box-shadow 80ms ease-out"
-            : "transform 600ms cubic-bezier(0.22,1,0.36,1), box-shadow 600ms ease-out",
-          boxShadow: `${-tilt.ry * 2.2}px ${tilt.rx * 2.2 + 45}px ${tilt.active ? 110 : 80}px -25px rgba(0,0,0,0.55)`,
+          width: W,
+          height: H,
+          transform: `scale(${fit})`,
+          transformOrigin: "top left",
         }}
       >
-      {/* side buttons (titanium) — raised off the frame for parallax */}
-      <div className="absolute -left-[4px] top-[118px] h-9 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500 [transform:translateZ(14px)]" />
-      <div className="absolute -left-[4px] top-[178px] h-14 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500 [transform:translateZ(14px)]" />
-      <div className="absolute -left-[4px] top-[248px] h-14 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500 [transform:translateZ(14px)]" />
-      <div className="absolute -right-[4px] top-[208px] h-20 w-[4px] rounded-r bg-gradient-to-b from-zinc-300 to-zinc-500 [transform:translateZ(14px)]" />
+        {/* side buttons (titanium) */}
+        <div className="absolute -left-[4px] top-[118px] h-9 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500" />
+        <div className="absolute -left-[4px] top-[178px] h-14 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500" />
+        <div className="absolute -left-[4px] top-[248px] h-14 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500" />
+        <div className="absolute -right-[4px] top-[208px] h-20 w-[4px] rounded-r bg-gradient-to-b from-zinc-300 to-zinc-500" />
 
-      {/* titanium frame */}
-      <div className="relative h-full w-full rounded-[3.6rem] bg-gradient-to-br from-zinc-200 via-zinc-500 to-zinc-800 p-[3px] ring-1 ring-white/20 [transform-style:preserve-3d]">
         {/* inner bezel (black) */}
         <div className="h-full w-full rounded-[3.45rem] bg-black p-[11px]">
           {/* screen */}
           <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[2.8rem] bg-white">
-            {/* dynamic island */}
-            <div className="pointer-events-none absolute left-1/2 top-2.5 z-30 flex h-[35px] w-[126px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-3.5 [transform:translateX(-50%)_translateZ(28px)]">
-              <span className="size-2 rounded-full bg-zinc-800 ring-1 ring-zinc-700" />
+            {/* dynamic island + front camera */}
+            <div className="pointer-events-none absolute left-1/2 top-3 z-30 flex h-[34px] w-[122px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-3">
+              <span className="grid size-[11px] place-items-center rounded-full bg-zinc-900 ring-1 ring-zinc-700">
+                <span className="size-[5px] rounded-full bg-zinc-600" />
+              </span>
             </div>
             {/* status bar */}
             <div
@@ -129,10 +122,9 @@ function IphoneShell({ children }: { children: React.ReactNode }) {
             </div>
             {children}
             {/* home indicator */}
-            <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-[5px] w-[136px] rounded-full bg-zinc-900/80 [transform:translateX(-50%)_translateZ(20px)]" />
+            <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-[5px] w-[136px] -translate-x-1/2 rounded-full bg-zinc-900/80" />
           </div>
         </div>
-      </div>
       </div>
     </div>
   );
@@ -942,7 +934,7 @@ export default function ChatPoc() {
       <canvas ref={canvasRef} className="hidden" />
       <canvas ref={sampleRef} className="hidden" />
 
-      <div className="mt-8 w-[404px] border-t border-zinc-200 pt-4">
+      <div className="mt-8 w-full max-w-[404px] border-t border-zinc-200 pt-4">
         <p className={cn("text-center text-[10px] uppercase tracking-[0.2em] text-zinc-400", mono)}>
           MMI2 · CSCW · Emotion-Aware Chat PoC
         </p>
