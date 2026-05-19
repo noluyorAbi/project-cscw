@@ -1,13 +1,10 @@
-import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// modern, highly legible UI face for the chat app
-const sans = Inter({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
+// Helvetica is a system font (not a Google webfont) — use a Helvetica stack
+const SANS_STACK =
+  '"Helvetica Neue", Helvetica, Arial, "Liberation Sans", system-ui, sans-serif';
 
 const mono = JetBrains_Mono({
   variable: "--font-geist-mono",
@@ -15,10 +12,43 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+const description =
+  "A working proof of concept: a phone messenger that ships the sender's facial expression and heart rate with every message. MMI2 SS26 · LMU Munich.";
+
 export const metadata: Metadata = {
-  title: "Emotion-Aware Chat — MMI2 SS26 PoC",
-  description:
-    "Proof of concept: a chat that sends the sender's facial expression and heart rate with every message.",
+  metadataBase: new URL("https://github.com/noluyorAbi/project-cscw"),
+  title: {
+    default: "Emotion-Aware Chat — MMI2 SS26 PoC",
+    template: "%s — Emotion-Aware Chat",
+  },
+  description,
+  applicationName: "Emotion-Aware Chat",
+  authors: [{ name: "Alperen Adatepe" }],
+  keywords: [
+    "HCI",
+    "CSCW",
+    "affective computing",
+    "emotion recognition",
+    "rPPG",
+    "MMI2",
+    "LMU",
+  ],
+  openGraph: {
+    type: "website",
+    title: "Emotion-Aware Chat — MMI2 SS26 PoC",
+    description,
+    siteName: "Emotion-Aware Chat",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Emotion-Aware Chat — MMI2 SS26 PoC",
+    description,
+  },
+  icons: { icon: "/icon.svg" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({
@@ -29,7 +59,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`${mono.variable} h-full antialiased`}
+      style={{ "--font-geist-sans": SANS_STACK } as React.CSSProperties}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
