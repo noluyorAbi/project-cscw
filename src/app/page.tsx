@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import {
   type ChatMessage,
   MARA_REPLIES,
+  sensedBpm,
+  sensedExpression,
   stressToBpm,
   stressToExpression,
   uid,
@@ -78,8 +80,8 @@ export default function ChatPoc() {
       id: uid(),
       author: "me",
       text,
-      expression: faceSharing ? stressToExpression(stress) : undefined,
-      bpm: faceSharing ? myBpm : undefined,
+      expression: faceSharing ? sensedExpression(stress) : undefined,
+      bpm: faceSharing ? sensedBpm(stress) : undefined,
       ts: Date.now(),
     };
     setMessages((m) => [...m, mine]);
@@ -94,8 +96,8 @@ export default function ChatPoc() {
           id: uid(),
           author: "mara",
           text: MARA_REPLIES[Math.floor(Math.random() * MARA_REPLIES.length)],
-          expression: stressToExpression(reactStress),
-          bpm: stressToBpm(reactStress),
+          expression: sensedExpression(reactStress),
+          bpm: sensedBpm(reactStress),
           ts: Date.now(),
         },
       ]);

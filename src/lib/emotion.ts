@@ -21,23 +21,37 @@ export const EXPRESSIONS: Record<ExpressionKey, Expression> = {
   sad: { key: "sad", emoji: "😢", label: "sad", tone: "bg-rose-100 text-rose-800 border-rose-200" },
 };
 
-/** stress 0..100 -> resting-ish bpm 62..122, with light jitter. */
+const clamp = (n: number) => Math.max(0, Math.min(100, n));
+
+/**
+ * stress 0..100 -> resting-ish bpm 62..120.
+ * Deterministic on purpose: used during render, so it must match between
+ * server and client (no Math.random -> no hydration mismatch).
+ */
 export function stressToBpm(stress: number): number {
-  const base = 62 + (Math.max(0, Math.min(100, stress)) / 100) * 58;
-  const jitter = (Math.random() - 0.5) * 6;
-  return Math.round(base + jitter);
+  return Math.round(62 + (clamp(stress) / 100) * 58);
 }
 
-/** stress 0..100 -> a plausible facial expression (the "detected face"). */
+/** stress 0..100 -> a plausible facial expression. Deterministic (render-safe). */
 export function stressToExpression(stress: number): Expression {
-  const s = Math.max(0, Math.min(100, stress));
-  // a little randomness so the "detector" isn't a pure step function
-  const noisy = s + (Math.random() - 0.5) * 12;
-  if (noisy < 18) return EXPRESSIONS.calm;
-  if (noisy < 38) return EXPRESSIONS.happy;
-  if (noisy < 58) return EXPRESSIONS.neutral;
-  if (noisy < 78) return EXPRESSIONS.tense;
+  const s = clamp(stress);
+  if (s < 18) return EXPRESSIONS.calm;
+  if (s < 38) return EXPRESSIONS.happy;
+  if (s < 58) return EXPRESSIONS.neutral;
+  if (s < 78) return EXPRESSIONS.tense;
   return EXPRESSIONS.sad;
+}
+
+/**
+ * Noisy variants — call ONLY from client event handlers / timeouts
+ * (never during render), so the "detector" isn't a pure step function.
+ */
+export function sensedBpm(stress: number): number {
+  return stressToBpm(stress) + Math.round((Math.random() - 0.5) * 6);
+}
+
+export function sensedExpression(stress: number): Expression {
+  return stressToExpression(clamp(stress) + (Math.random() - 0.5) * 12);
 }
 
 export type Author = "me" | "mara";
