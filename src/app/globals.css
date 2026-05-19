@@ -153,3 +153,13 @@
   animation-iteration-count: infinite;
   transform-origin: center;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .heart-pulse,
+  .armband-pulse,
+  .animate-bounce,
+  .animate-spin,
+  .animate-pulse {
+    animation: none !important;
+  }
+}
