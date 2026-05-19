@@ -10,6 +10,7 @@ import {
   Loader2,
   ScanFace,
   Send,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ export default function ChatPoc() {
   const [cameraOn, setCameraOn] = useState(false);
   const [faceStatus, setFaceStatus] = useState<FaceStatus>("off");
   const [detected, setDetected] = useState<Detection | null>(null);
+  const [typing, setTyping] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -129,12 +131,51 @@ export default function ChatPoc() {
     };
   }, [faceStatus]);
 
+  // persistence — load once on mount. Deferred to a microtask so the first
+  // paint still matches the SSR markup (no hydration mismatch) and the state
+  // update is not synchronous inside the effect.
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      try {
+        const raw = localStorage.getItem("cscw-chat");
+        if (raw) {
+          const parsed = JSON.parse(raw) as ChatMessage[];
+          if (Array.isArray(parsed) && parsed.length) setMessages(parsed);
+        }
+      } catch {
+        /* ignore corrupt storage */
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("cscw-chat", JSON.stringify(messages));
+    } catch {
+      /* quota / unavailable — non-fatal for a PoC */
+    }
+  }, [messages]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages]);
+  }, [messages, typing]);
+
+  const clearChat = useCallback(() => {
+    setMessages(seed());
+    try {
+      localStorage.removeItem("cscw-chat");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   // grab a mirrored, downscaled still from the video
   const capturePhoto = useCallback((): string | undefined => {
@@ -186,10 +227,12 @@ export default function ChatPoc() {
 
     setMessages((m) => [...m, mine]);
     setDraft("");
+    setTyping(true);
 
     const reactStress = Math.max(8, Math.min(95, stress + (Math.random() - 0.4) * 40));
     window.setTimeout(
       () => {
+        setTyping(false);
         setMessages((m) => [
           ...m,
           {
@@ -240,6 +283,14 @@ export default function ChatPoc() {
               )}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={clearChat}
+            aria-label="clear chat"
+            className="rounded-md bg-white/15 p-1.5 hover:bg-white/25"
+          >
+            <Trash2 size={14} />
+          </button>
           <Link
             href="/idea"
             className="rounded-md bg-white/15 px-2 py-1 text-xs hover:bg-white/25"
@@ -300,6 +351,13 @@ export default function ChatPoc() {
               </div>
             );
           })}
+          {typing && (
+            <div className="flex items-center gap-1 self-start rounded-2xl rounded-bl-sm bg-card px-3 py-2.5 shadow-sm">
+              <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
+              <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
+              <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
+            </div>
+          )}
         </div>
 
         {/* controls */}
