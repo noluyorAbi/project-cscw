@@ -208,6 +208,7 @@ export default function ChatPoc() {
   const [askConsent, setAskConsent] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
+  const [zoomPhoto, setZoomPhoto] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -680,12 +681,19 @@ export default function ChatPoc() {
                   )}
                 >
                   {m.photo && (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={m.photo}
-                      alt="sender's face at send time"
-                      className="aspect-[4/3] w-44 object-cover"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setZoomPhoto(m.photo!)}
+                      aria-label="enlarge attached photo"
+                      className="block w-44 cursor-zoom-in"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={m.photo}
+                        alt="sender's face at send time"
+                        className="aspect-[4/3] w-44 object-cover"
+                      />
+                    </button>
                   )}
                   <p className="px-3 py-2">{m.text}</p>
                 </div>
@@ -873,6 +881,30 @@ export default function ChatPoc() {
             </button>
           </div>
         </div>
+        {zoomPhoto && (
+          <button
+            type="button"
+            onClick={() => setZoomPhoto(null)}
+            aria-label="close photo"
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 p-6"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={zoomPhoto}
+              alt="attached photo, enlarged"
+              className="max-h-full max-w-full rounded-xl object-contain"
+            />
+            <span
+              className={cn(
+                "absolute bottom-8 left-1/2 -translate-x-1/2 text-[11px] uppercase tracking-[0.2em] text-white/70",
+                mono,
+              )}
+            >
+              tap to close
+            </span>
+          </button>
+        )}
+
         {countdown !== null && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm">
             <span
