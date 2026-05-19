@@ -9,6 +9,8 @@ import {
   CameraOff,
   Eye,
   EyeOff,
+  Heart,
+  HeartOff,
   Send,
   Signal,
   Trash2,
@@ -139,6 +141,8 @@ export default function ChatPoc() {
   const [draft, setDraft] = useState("");
   const [stress, setStress] = useState(45);
   const [faceSharing, setFaceSharing] = useState(true);
+  // heartbeat (bpm / pulse / armband / haptics / rPPG) is opt-in
+  const [shareHeartbeat, setShareHeartbeat] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [faceStatus, setFaceStatus] = useState<FaceStatus>("off");
   const [detected, setDetected] = useState<Detection | null>(null);
@@ -179,6 +183,16 @@ export default function ChatPoc() {
         ppgRef.current?.reset();
       }
       return next;
+    });
+  }, []);
+
+  const toggleHeartbeat = useCallback(() => {
+    setShareHeartbeat((prev) => {
+      if (prev) {
+        setHr(null);
+        ppgRef.current?.reset();
+      }
+      return !prev;
     });
   }, []);
 
@@ -271,6 +285,7 @@ export default function ChatPoc() {
 
   // rPPG sampling loop — fast green-channel average of the forehead ROI
   useEffect(() => {
+    if (!shareHeartbeat) return;
     if (faceStatus !== "ready" && faceStatus !== "searching") return;
     if (!ppgRef.current) ppgRef.current = new PpgEstimator();
     let raf = 0;
@@ -308,7 +323,7 @@ export default function ChatPoc() {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [faceStatus]);
+  }, [faceStatus, shareHeartbeat]);
 
   // persistence — deferred load keeps SSR markup stable + non-sync setState
   useEffect(() => {
@@ -384,11 +399,13 @@ export default function ChatPoc() {
         text,
         photo: capturePhoto(),
         expression: detected?.expression ?? sensedExpression(stress),
-        bpm: hr
-          ? hr.bpm
-          : detected
-            ? stressToBpm(detected.arousal)
-            : sensedBpm(stress),
+        bpm: !shareHeartbeat
+          ? undefined
+          : hr
+            ? hr.bpm
+            : detected
+              ? stressToBpm(detected.arousal)
+              : sensedBpm(stress),
         confidence: detected?.confidence,
         ts: Date.now(),
       };
@@ -398,7 +415,7 @@ export default function ChatPoc() {
         author: "me",
         text,
         expression: sensedExpression(stress),
-        bpm: sensedBpm(stress),
+        bpm: shareHeartbeat ? sensedBpm(stress) : undefined,
         ts: Date.now(),
       };
     }
@@ -419,13 +436,15 @@ export default function ChatPoc() {
             author: "mara",
             text: MARA_REPLIES[Math.floor(Math.random() * MARA_REPLIES.length)],
             expression: sensedExpression(reactStress),
-            bpm: rbpm,
+            bpm: shareHeartbeat ? rbpm : undefined,
             ts: Date.now(),
           },
         ]);
-        // haptic "armband": buzz two beats at the sender's heart rate
-        const beat = Math.round(60000 / rbpm);
-        navigator.vibrate?.([45, Math.max(60, beat - 45), 45]);
+        if (shareHeartbeat) {
+          // haptic "armband": buzz a beat at the sender's heart rate
+          const beat = Math.round(60000 / rbpm);
+          navigator.vibrate?.([45, Math.max(60, beat - 45), 45]);
+        }
       },
       1100 + Math.random() * 900,
     );
@@ -581,11 +600,15 @@ export default function ChatPoc() {
             <span className="flex items-center gap-2 text-zinc-900">
               <span className="text-sm">{liveExpr.emoji}</span>
               <span>{liveExpr.label}</span>
-              <Pulse bpm={liveBpm} size={13} />
-              {cameraOn && (
-                <span className="text-zinc-400">
-                  {hr ? `rPPG·q${Math.round(hr.quality * 100)}` : "rPPG…"}
-                </span>
+              {shareHeartbeat && (
+                <>
+                  <Pulse bpm={liveBpm} size={13} />
+                  {cameraOn && (
+                    <span className="text-zinc-400">
+                      {hr ? `rPPG·q${Math.round(hr.quality * 100)}` : "rPPG…"}
+                    </span>
+                  )}
+                </>
               )}
             </span>
           </div>
@@ -628,34 +651,49 @@ export default function ChatPoc() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setFaceSharing((v) => !v)}
               className={cn(
-                "inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium transition-colors",
+                "inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-[11px] font-medium transition-colors",
                 mono,
                 faceSharing
                   ? "border-zinc-900 bg-zinc-900 text-white"
                   : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-900",
               )}
             >
-              {faceSharing ? <Eye size={14} /> : <EyeOff size={14} />}
+              {faceSharing ? <Eye size={13} /> : <EyeOff size={13} />}
               {faceSharing ? "SHARING" : "PRIVATE"}
             </button>
             <button
               type="button"
               onClick={toggleCamera}
               className={cn(
-                "inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] font-medium transition-colors",
+                "inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-[11px] font-medium transition-colors",
                 mono,
                 cameraOn
                   ? "border-zinc-900 bg-zinc-900 text-white"
                   : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-900",
               )}
             >
-              {cameraOn ? <Camera size={14} /> : <CameraOff size={14} />}
-              {cameraOn ? "CAMERA ON" : "CAMERA OFF"}
+              {cameraOn ? <Camera size={13} /> : <CameraOff size={13} />}
+              CAMERA
+            </button>
+            <button
+              type="button"
+              onClick={toggleHeartbeat}
+              aria-pressed={shareHeartbeat}
+              className={cn(
+                "inline-flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-[11px] font-medium transition-colors",
+                mono,
+                shareHeartbeat
+                  ? "border-rose-500 bg-rose-500 text-white"
+                  : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-900",
+              )}
+            >
+              {shareHeartbeat ? <Heart size={13} /> : <HeartOff size={13} />}
+              {shareHeartbeat ? "PULSE ON" : "PULSE OFF"}
             </button>
           </div>
 
