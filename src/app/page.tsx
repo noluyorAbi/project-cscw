@@ -64,35 +64,68 @@ const seed = (): ChatMessage[] => [
 
 type FaceStatus = "off" | "loading" | "ready" | "searching" | "error";
 
-/** Realistic iPhone-15-Pro-ish shell: titanium rail, Dynamic Island, status bar, home indicator. */
+/** iPhone-15-Pro-ish shell: titanium rail, side buttons, Dynamic Island. */
 function IphoneShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative h-[812px] w-[390px] rounded-[3.5rem] bg-gradient-to-b from-zinc-700 to-zinc-900 p-[10px] shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_40px_90px_-20px_rgba(0,0,0,0.85)]">
-      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[2.9rem] bg-white ring-1 ring-black/40">
-        {/* dynamic island */}
-        <div className="pointer-events-none absolute left-1/2 top-2 z-30 h-[34px] w-[120px] -translate-x-1/2 rounded-full bg-black" />
-        {/* status bar */}
-        <div className={cn("flex items-center justify-between px-7 pb-1 pt-3.5 text-[13px] font-semibold text-zinc-900", mono)}>
-          <span>19:05</span>
-          <span className="flex items-center gap-1.5">
-            <Signal size={14} strokeWidth={2.5} />
-            <Wifi size={14} strokeWidth={2.5} />
-            <BatteryFull size={18} strokeWidth={2} />
-          </span>
+    <div className="relative h-[838px] w-[404px]">
+      {/* side buttons (titanium) */}
+      <div className="absolute -left-[3px] top-[118px] h-9 w-[3px] rounded-l bg-zinc-400" />
+      <div className="absolute -left-[3px] top-[178px] h-14 w-[3px] rounded-l bg-zinc-400" />
+      <div className="absolute -left-[3px] top-[248px] h-14 w-[3px] rounded-l bg-zinc-400" />
+      <div className="absolute -right-[3px] top-[208px] h-20 w-[3px] rounded-r bg-zinc-400" />
+
+      {/* titanium frame */}
+      <div className="relative h-full w-full rounded-[3.6rem] bg-gradient-to-br from-zinc-300 via-zinc-500 to-zinc-700 p-[3px] shadow-[0_50px_100px_-25px_rgba(0,0,0,0.55)]">
+        {/* inner bezel (black) */}
+        <div className="h-full w-full rounded-[3.45rem] bg-black p-[11px]">
+          {/* screen */}
+          <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[2.8rem] bg-white">
+            {/* dynamic island */}
+            <div className="pointer-events-none absolute left-1/2 top-2.5 z-30 flex h-[35px] w-[126px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-3.5">
+              <span className="size-2 rounded-full bg-zinc-800 ring-1 ring-zinc-700" />
+            </div>
+            {/* status bar */}
+            <div
+              className={cn(
+                "flex items-center justify-between px-8 pb-1 pt-4 text-[14px] font-semibold text-zinc-900",
+                mono,
+              )}
+            >
+              <span>19:05</span>
+              <span className="flex items-center gap-1.5">
+                <Signal size={15} strokeWidth={2.5} />
+                <Wifi size={15} strokeWidth={2.5} />
+                <BatteryFull size={20} strokeWidth={2} />
+              </span>
+            </div>
+            {children}
+            {/* home indicator */}
+            <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-[5px] w-[136px] -translate-x-1/2 rounded-full bg-zinc-900/80" />
+          </div>
         </div>
-        {children}
-        {/* home indicator */}
-        <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-zinc-900/80" />
       </div>
     </div>
   );
 }
 
 /** Sparkline of the user's own heart rate across the conversation. */
-function EmotionTimeline({ data }: { data: ChatMessage[] }) {
+function EmotionTimeline({
+  data,
+  enabled,
+}: {
+  data: ChatMessage[];
+  enabled: boolean;
+}) {
   const pts = data
     .filter((m) => m.author === "me" && typeof m.bpm === "number")
     .slice(-24);
+  if (!enabled) {
+    return (
+      <p className={cn("py-3 text-center text-[10px] text-zinc-400", mono)}>
+        turn PULSE on to record your heart-rate trend
+      </p>
+    );
+  }
   if (pts.length < 2) {
     return (
       <p className={cn("py-3 text-center text-[10px] text-zinc-400", mono)}>
@@ -483,7 +516,7 @@ export default function ChatPoc() {
   const pill = statusPill[faceStatus];
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center bg-black px-4 py-12 [background-image:radial-gradient(ellipse_at_50%_-10%,#202020,#000_55%)]">
+    <main className="flex flex-1 flex-col items-center justify-center bg-white px-4 py-12 [background-image:radial-gradient(ellipse_at_50%_0,#f4f4f5,#fff_60%)]">
       <IphoneShell>
         {/* app header */}
         <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-5 py-2.5">
@@ -500,7 +533,7 @@ export default function ChatPoc() {
                   <span>
                     {maraLast.expression.emoji} {maraLast.expression.label}
                   </span>
-                  {typeof maraLast.bpm === "number" && (
+                  {shareHeartbeat && typeof maraLast.bpm === "number" && (
                     <>
                       <Armband bpm={maraLast.bpm} />
                       <Pulse bpm={maraLast.bpm} size={11} />
@@ -586,7 +619,10 @@ export default function ChatPoc() {
                           : ""
                       }`
                     : ""}
-                  {typeof m.bpm === "number" ? `, ${m.bpm} bpm` : ""} at{" "}
+                  {shareHeartbeat && typeof m.bpm === "number"
+                    ? `, ${m.bpm} bpm`
+                    : ""}{" "}
+                  at{" "}
                   {fmtTime(m.ts)}
                 </span>
                 <div
@@ -603,7 +639,9 @@ export default function ChatPoc() {
                         {typeof m.confidence === "number" &&
                           ` · ${Math.round(m.confidence * 100)}%`}
                       </span>
-                      {typeof m.bpm === "number" && <Pulse bpm={m.bpm} size={11} />}
+                      {shareHeartbeat && typeof m.bpm === "number" && (
+                        <Pulse bpm={m.bpm} size={11} />
+                      )}
                     </>
                   ) : (
                     <span className="italic opacity-70">no signal shared</span>
@@ -626,7 +664,7 @@ export default function ChatPoc() {
 
         {showTrend && (
           <div className="border-t border-zinc-200 bg-white px-4">
-            <EmotionTimeline data={messages} />
+            <EmotionTimeline data={messages} enabled={shareHeartbeat} />
           </div>
         )}
 
@@ -798,8 +836,8 @@ export default function ChatPoc() {
       <canvas ref={canvasRef} className="hidden" />
       <canvas ref={sampleRef} className="hidden" />
 
-      <div className="mt-8 w-[390px] border-t border-zinc-800 pt-4">
-        <p className={cn("text-center text-[10px] uppercase tracking-[0.2em] text-zinc-600", mono)}>
+      <div className="mt-8 w-[404px] border-t border-zinc-200 pt-4">
+        <p className={cn("text-center text-[10px] uppercase tracking-[0.2em] text-zinc-400", mono)}>
           MMI2 · CSCW · Emotion-Aware Chat PoC
         </p>
         <p className={cn("mt-2 text-center text-[11px] leading-relaxed text-zinc-500", mono)}>
