@@ -7,6 +7,7 @@ import {
   BatteryFull,
   Camera,
   CameraOff,
+  Download,
   Eye,
   EyeOff,
   Heart,
@@ -480,6 +481,43 @@ export default function ChatPoc() {
     }
   }, []);
 
+  // the conversation is the user's data — let them take it with them
+  const exportChat = useCallback(() => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      app: "MMI2 SS26 Emotion-Aware Chat PoC",
+      messages: messages.map((m) => ({
+        author: m.author,
+        text: m.text,
+        expression: m.expression?.label,
+        confidence: m.confidence,
+        bpm: m.bpm,
+        hasPhoto: Boolean(m.photo),
+        ts: m.ts,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cscw-chat-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [messages]);
+
+  // Escape dismisses the topmost overlay
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (zoomPhoto) setZoomPhoto(null);
+      else if (askConsent) setAskConsent(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomPhoto, askConsent]);
+
   const capturePhoto = useCallback((): string | undefined => {
     const v = videoRef.current;
     const c = canvasRef.current;
@@ -636,6 +674,14 @@ export default function ChatPoc() {
             )}
           >
             <Activity size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={exportChat}
+            aria-label="export conversation"
+            className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+          >
+            <Download size={15} />
           </button>
           <button
             type="button"
