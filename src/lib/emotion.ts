@@ -63,6 +63,10 @@ export type ChatMessage = {
   /** undefined when the sender turned face-sharing off (privacy control) */
   expression?: Expression;
   bpm?: number;
+  /** captured webcam still (jpeg data URL) attached to this message */
+  photo?: string;
+  /** model confidence 0..1 when the expression came from real detection */
+  confidence?: number;
   ts: number;
 };
 
