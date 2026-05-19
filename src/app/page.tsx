@@ -149,6 +149,8 @@ export default function ChatPoc() {
   const [typing, setTyping] = useState(false);
   const [hr, setHr] = useState<{ bpm: number; quality: number } | null>(null);
   const [showTrend, setShowTrend] = useState(false);
+  const [camConsent, setCamConsent] = useState(false);
+  const [askConsent, setAskConsent] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -169,21 +171,39 @@ export default function ChatPoc() {
     cameraOn && detected ? detected.expression : stressToExpression(stress);
   const maraLast = [...messages].reverse().find((m) => m.author === "mara");
 
-  // state transitions live in the toggle (an event), not in the effect
+  const stopCamera = useCallback(() => {
+    setCameraOn(false);
+    setDetected(null);
+    setHr(null);
+    setFaceStatus("off");
+    boxRef.current = null;
+    ppgRef.current?.reset();
+  }, []);
+
+  // first camera use is gated by an explicit on-device consent dialog
   const toggleCamera = useCallback(() => {
-    setCameraOn((prev) => {
-      const next = !prev;
-      if (next) {
-        setFaceStatus("loading");
-      } else {
-        setDetected(null);
-        setHr(null);
-        setFaceStatus("off");
-        boxRef.current = null;
-        ppgRef.current?.reset();
-      }
-      return next;
-    });
+    if (cameraOn) {
+      stopCamera();
+      return;
+    }
+    if (!camConsent) {
+      setAskConsent(true);
+      return;
+    }
+    setFaceStatus("loading");
+    setCameraOn(true);
+  }, [cameraOn, camConsent, stopCamera]);
+
+  const acceptConsent = useCallback(() => {
+    setCamConsent(true);
+    try {
+      localStorage.setItem("cscw-cam-consent", "1");
+    } catch {
+      /* ignore */
+    }
+    setAskConsent(false);
+    setFaceStatus("loading");
+    setCameraOn(true);
   }, []);
 
   const toggleHeartbeat = useCallback(() => {
@@ -336,6 +356,8 @@ export default function ChatPoc() {
           const parsed = JSON.parse(raw) as ChatMessage[];
           if (Array.isArray(parsed) && parsed.length) setMessages(parsed);
         }
+        if (localStorage.getItem("cscw-cam-consent") === "1")
+          setCamConsent(true);
       } catch {
         /* ignore corrupt storage */
       }
@@ -715,6 +737,44 @@ export default function ChatPoc() {
             </button>
           </div>
         </div>
+        {askConsent && (
+          <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/40 p-3 pb-9">
+            <div className="w-full rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">
+              <p className={cn("text-[11px] uppercase tracking-[0.18em] text-zinc-500", mono)}>
+                Camera consent
+              </p>
+              <p className="mt-2 text-[13px] leading-relaxed text-zinc-900">
+                Frames are analysed <strong>on this device only</strong> — face
+                expression (and, if you enable PULSE, a heart-rate estimate).
+                Nothing is uploaded or recorded. A still is attached to a
+                message only when you press send. You can stop the camera any
+                time.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAskConsent(false)}
+                  className={cn(
+                    "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-[12px] font-medium text-zinc-600 hover:border-zinc-900",
+                    mono,
+                  )}
+                >
+                  NOT NOW
+                </button>
+                <button
+                  type="button"
+                  onClick={acceptConsent}
+                  className={cn(
+                    "rounded-lg border border-zinc-900 bg-zinc-900 px-3 py-2 text-[12px] font-medium text-white",
+                    mono,
+                  )}
+                >
+                  ALLOW CAMERA
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </IphoneShell>
 
       <canvas ref={canvasRef} className="hidden" />
