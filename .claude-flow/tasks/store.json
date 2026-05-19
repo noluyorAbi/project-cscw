@@ -1,0 +1,55 @@
+{
+  "tasks": {
+    "task-1779218267721-8nb5qa": {
+      "taskId": "task-1779218267721-8nb5qa",
+      "type": "feature",
+      "description": "Final app: /about methodology page (HCI framing — Bush memex, Weiser ubicomp, ÖAW digital ethics; method: face-api expression + rPPG; ethics: consent/privacy levers; limitations)",
+      "priority": "high",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "final-app",
+        "content",
+        "mmi2"
+      ],
+      "createdAt": "2026-05-19T19:17:47.721Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1779218269486-8jhl2v": {
+      "taskId": "task-1779218269486-8jhl2v",
+      "type": "feature",
+      "description": "Final app: shared header nav across / (chat), /idea (canvas), /about; consistent Helvetica/Vercel shell",
+      "priority": "high",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "final-app",
+        "nav",
+        "ux"
+      ],
+      "createdAt": "2026-05-19T19:17:49.486Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1779218270747-oi4jd6": {
+      "taskId": "task-1779218270747-oi4jd6",
+      "type": "feature",
+      "description": "Final app: deploy to Vercel (production URL), update README + QR target",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "final-app",
+        "deploy"
+      ],
+      "createdAt": "2026-05-19T19:17:50.747Z",
+      "startedAt": null,
+      "completedAt": null
+    }
+  },
+  "version": "3.0.0"
+}

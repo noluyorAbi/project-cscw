@@ -456,7 +456,11 @@ export default function ChatPoc() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("cscw-chat", JSON.stringify(messages));
+      // photos are heavy base64 — keep them in memory for this session
+      // but persist only the last 60 messages without photos so a long
+      // conversation can't blow the localStorage quota
+      const slim = messages.slice(-60).map((m) => ({ ...m, photo: undefined }));
+      localStorage.setItem("cscw-chat", JSON.stringify(slim));
     } catch {
       /* quota / unavailable — non-fatal for a PoC */
     }
@@ -1054,6 +1058,14 @@ export default function ChatPoc() {
           text only, the control the canvas (&ldquo;2 cameras on → no
           control&rdquo;) never had.
         </p>
+        <nav className={cn("mt-3 flex justify-center gap-4 text-[11px]", mono)}>
+          <Link href="/idea" className="text-zinc-500 hover:text-zinc-900">
+            CANVAS
+          </Link>
+          <Link href="/about" className="text-zinc-500 hover:text-zinc-900">
+            ABOUT
+          </Link>
+        </nav>
       </div>
     </main>
   );
