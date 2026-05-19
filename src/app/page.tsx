@@ -64,24 +64,53 @@ const seed = (): ChatMessage[] => [
 
 type FaceStatus = "off" | "loading" | "ready" | "searching" | "error";
 
-/** iPhone-15-Pro-ish shell: titanium rail, side buttons, Dynamic Island. */
+/** iPhone-15-Pro-ish shell: titanium rail, side buttons, Dynamic Island.
+ *  Tilts in 3D toward the cursor on hover (skipped if reduced-motion). */
 function IphoneShell({ children }: { children: React.ReactNode }) {
+  const [tilt, setTilt] = useState({ rx: 0, ry: 0, active: false });
+
+  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    setTilt({ rx: -py * 14, ry: px * 16, active: true });
+  };
+  const onLeave = () => setTilt({ rx: 0, ry: 0, active: false });
+
   return (
-    <div className="relative h-[838px] w-[404px]">
-      {/* side buttons (titanium) */}
-      <div className="absolute -left-[3px] top-[118px] h-9 w-[3px] rounded-l bg-zinc-400" />
-      <div className="absolute -left-[3px] top-[178px] h-14 w-[3px] rounded-l bg-zinc-400" />
-      <div className="absolute -left-[3px] top-[248px] h-14 w-[3px] rounded-l bg-zinc-400" />
-      <div className="absolute -right-[3px] top-[208px] h-20 w-[3px] rounded-r bg-zinc-400" />
+    <div
+      className="[perspective:1600px]"
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+    >
+      <div
+        className="relative h-[838px] w-[404px] rounded-[3.6rem] [transform-style:preserve-3d]"
+        style={{
+          transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg) scale(${tilt.active ? 1.03 : 1})`,
+          transition: tilt.active
+            ? "transform 80ms ease-out, box-shadow 80ms ease-out"
+            : "transform 600ms cubic-bezier(0.22,1,0.36,1), box-shadow 600ms ease-out",
+          boxShadow: `${-tilt.ry * 2.2}px ${tilt.rx * 2.2 + 45}px ${tilt.active ? 110 : 80}px -25px rgba(0,0,0,0.55)`,
+        }}
+      >
+      {/* side buttons (titanium) — raised off the frame for parallax */}
+      <div className="absolute -left-[4px] top-[118px] h-9 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500 [transform:translateZ(14px)]" />
+      <div className="absolute -left-[4px] top-[178px] h-14 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500 [transform:translateZ(14px)]" />
+      <div className="absolute -left-[4px] top-[248px] h-14 w-[4px] rounded-l bg-gradient-to-b from-zinc-300 to-zinc-500 [transform:translateZ(14px)]" />
+      <div className="absolute -right-[4px] top-[208px] h-20 w-[4px] rounded-r bg-gradient-to-b from-zinc-300 to-zinc-500 [transform:translateZ(14px)]" />
 
       {/* titanium frame */}
-      <div className="relative h-full w-full rounded-[3.6rem] bg-gradient-to-br from-zinc-300 via-zinc-500 to-zinc-700 p-[3px] shadow-[0_50px_100px_-25px_rgba(0,0,0,0.55)]">
+      <div className="relative h-full w-full rounded-[3.6rem] bg-gradient-to-br from-zinc-200 via-zinc-500 to-zinc-800 p-[3px] ring-1 ring-white/20 [transform-style:preserve-3d]">
         {/* inner bezel (black) */}
         <div className="h-full w-full rounded-[3.45rem] bg-black p-[11px]">
           {/* screen */}
           <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[2.8rem] bg-white">
             {/* dynamic island */}
-            <div className="pointer-events-none absolute left-1/2 top-2.5 z-30 flex h-[35px] w-[126px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-3.5">
+            <div className="pointer-events-none absolute left-1/2 top-2.5 z-30 flex h-[35px] w-[126px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-3.5 [transform:translateX(-50%)_translateZ(28px)]">
               <span className="size-2 rounded-full bg-zinc-800 ring-1 ring-zinc-700" />
             </div>
             {/* status bar */}
@@ -100,9 +129,10 @@ function IphoneShell({ children }: { children: React.ReactNode }) {
             </div>
             {children}
             {/* home indicator */}
-            <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-[5px] w-[136px] -translate-x-1/2 rounded-full bg-zinc-900/80" />
+            <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-[5px] w-[136px] rounded-full bg-zinc-900/80 [transform:translateX(-50%)_translateZ(20px)]" />
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -184,6 +214,8 @@ export default function ChatPoc() {
   const [showTrend, setShowTrend] = useState(false);
   const [camConsent, setCamConsent] = useState(false);
   const [askConsent, setAskConsent] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [flash, setFlash] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -440,70 +472,91 @@ export default function ChatPoc() {
     return c.toDataURL("image/jpeg", 0.55);
   }, []);
 
+  const postMessage = useCallback(
+    (text: string, photo?: string) => {
+      let mine: ChatMessage;
+      if (!faceSharing) {
+        mine = { id: uid(), author: "me", text, ts: Date.now() };
+      } else if (cameraOn) {
+        mine = {
+          id: uid(),
+          author: "me",
+          text,
+          photo,
+          expression: detected?.expression ?? sensedExpression(stress),
+          bpm: !shareHeartbeat
+            ? undefined
+            : hr
+              ? hr.bpm
+              : detected
+                ? stressToBpm(detected.arousal)
+                : sensedBpm(stress),
+          confidence: detected?.confidence,
+          ts: Date.now(),
+        };
+      } else {
+        mine = {
+          id: uid(),
+          author: "me",
+          text,
+          expression: sensedExpression(stress),
+          bpm: shareHeartbeat ? sensedBpm(stress) : undefined,
+          ts: Date.now(),
+        };
+      }
+
+      const myKey = mine.expression?.key;
+      setMessages((m) => [...m, mine]);
+      setTyping(true);
+
+      const reactStress = Math.max(
+        8,
+        Math.min(95, stress + (Math.random() - 0.4) * 40),
+      );
+      window.setTimeout(
+        () => {
+          setTyping(false);
+          const rbpm = sensedBpm(reactStress);
+          setMessages((m) => [
+            ...m,
+            {
+              id: uid(),
+              author: "mara",
+              text: maraReply(myKey),
+              expression: sensedExpression(reactStress),
+              bpm: shareHeartbeat ? rbpm : undefined,
+              ts: Date.now(),
+            },
+          ]);
+          if (shareHeartbeat) {
+            const beat = Math.round(60000 / rbpm);
+            navigator.vibrate?.([45, Math.max(60, beat - 45), 45]);
+          }
+        },
+        1100 + Math.random() * 900,
+      );
+    },
+    [faceSharing, cameraOn, detected, stress, shareHeartbeat, hr],
+  );
+
   function send() {
     const text = draft.trim();
-    if (!text) return;
-
-    let mine: ChatMessage;
-    if (!faceSharing) {
-      mine = { id: uid(), author: "me", text, ts: Date.now() };
-    } else if (cameraOn) {
-      mine = {
-        id: uid(),
-        author: "me",
-        text,
-        photo: capturePhoto(),
-        expression: detected?.expression ?? sensedExpression(stress),
-        bpm: !shareHeartbeat
-          ? undefined
-          : hr
-            ? hr.bpm
-            : detected
-              ? stressToBpm(detected.arousal)
-              : sensedBpm(stress),
-        confidence: detected?.confidence,
-        ts: Date.now(),
-      };
-    } else {
-      mine = {
-        id: uid(),
-        author: "me",
-        text,
-        expression: sensedExpression(stress),
-        bpm: shareHeartbeat ? sensedBpm(stress) : undefined,
-        ts: Date.now(),
-      };
-    }
-
-    const myKey = mine.expression?.key;
-    setMessages((m) => [...m, mine]);
+    if (!text || countdown !== null) return;
     setDraft("");
-    setTyping(true);
 
-    const reactStress = Math.max(8, Math.min(95, stress + (Math.random() - 0.4) * 40));
-    window.setTimeout(
-      () => {
-        setTyping(false);
-        const rbpm = sensedBpm(reactStress);
-        setMessages((m) => [
-          ...m,
-          {
-            id: uid(),
-            author: "mara",
-            text: maraReply(myKey),
-            expression: sensedExpression(reactStress),
-            bpm: shareHeartbeat ? rbpm : undefined,
-            ts: Date.now(),
-          },
-        ]);
-        if (shareHeartbeat) {
-          // haptic "armband": buzz a beat at the sender's heart rate
-          const beat = Math.round(60000 / rbpm);
-          navigator.vibrate?.([45, Math.max(60, beat - 45), 45]);
-        }
-      },
-      1100 + Math.random() * 900,
-    );
+    // camera path: 1 s attention countdown -> flash -> capture -> post
+    if (faceSharing && cameraOn) {
+      setCountdown(1);
+      window.setTimeout(() => {
+        setCountdown(null);
+        setFlash(true);
+        const photo = capturePhoto();
+        window.setTimeout(() => setFlash(false), 160);
+        postMessage(text, photo);
+      }, 1000);
+      return;
+    }
+    postMessage(text);
   }
 
   const statusPill: Record<FaceStatus, { label: string; dot: string }> = {
@@ -786,13 +839,32 @@ export default function ChatPoc() {
             <button
               type="button"
               onClick={send}
+              disabled={countdown !== null}
               aria-label="send"
-              className="grid size-10 shrink-0 place-items-center rounded-full bg-zinc-900 text-white transition-transform hover:scale-105 active:scale-95"
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-zinc-900 text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
             >
               <Send size={16} />
             </button>
           </div>
         </div>
+        {countdown !== null && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/70 backdrop-blur-sm">
+            <span
+              key={countdown}
+              className="animate-ping text-7xl font-bold text-white"
+              style={{ animationDuration: "1s", animationIterationCount: 1 }}
+            >
+              {countdown}
+            </span>
+            <span className={cn("text-[12px] uppercase tracking-[0.25em] text-white/90", mono)}>
+              look at the camera
+            </span>
+          </div>
+        )}
+        {flash && (
+          <div className="pointer-events-none absolute inset-0 z-50 bg-white" />
+        )}
+
         {askConsent && (
           <div className="absolute inset-0 z-40 flex items-end justify-center bg-black/40 p-3 pb-9">
             <div className="w-full rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">
