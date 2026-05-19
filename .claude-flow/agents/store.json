@@ -1,0 +1,33 @@
+{
+  "agents": {
+    "agent-1779220377824-3akq7v": {
+      "agentId": "agent-1779220377824-3akq7v",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "haiku"
+      },
+      "createdAt": "2026-05-19T19:52:57.824Z",
+      "domain": "project-cscw-final",
+      "model": "haiku",
+      "modelRoutedBy": "explicit"
+    },
+    "agent-1779220378869-ozolte": {
+      "agentId": "agent-1779220378869-ozolte",
+      "agentType": "reviewer",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "model": "haiku"
+      },
+      "createdAt": "2026-05-19T19:52:58.869Z",
+      "domain": "project-cscw-final",
+      "model": "haiku",
+      "modelRoutedBy": "explicit"
+    }
+  },
+  "version": "3.0.0"
+}

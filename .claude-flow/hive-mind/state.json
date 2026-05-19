@@ -1,0 +1,13 @@
+{
+  "initialized": false,
+  "topology": "mesh",
+  "workers": [],
+  "consensus": {
+    "pending": [],
+    "history": []
+  },
+  "sharedMemory": {},
+  "createdAt": "2026-05-19T19:53:08.321Z",
+  "updatedAt": "2026-05-19T19:53:58.005Z",
+  "consensusStrategy": "raft"
+}
