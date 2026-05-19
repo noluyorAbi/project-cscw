@@ -141,3 +141,15 @@
   animation-iteration-count: infinite;
   will-change: transform;
 }
+
+@keyframes armband {
+  0%, 100% { opacity: 0.3; transform: scaleY(0.6); }
+  28% { opacity: 1; transform: scaleY(1); }
+  48% { opacity: 0.55; transform: scaleY(0.78); }
+}
+.armband-pulse {
+  animation-name: armband;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  transform-origin: center;
+}

@@ -34,6 +34,20 @@ import { PpgEstimator } from "@/lib/ppg";
 
 const mono = "font-[family-name:var(--font-geist-mono)]";
 
+const fmtTime = (ts: number) =>
+  new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+/** thin bar that beats at `bpm` — the canvas's "armband that pulses your heartrate". */
+function Armband({ bpm }: { bpm: number }) {
+  return (
+    <span
+      className="armband-pulse inline-block h-2.5 w-6 rounded-full bg-rose-500"
+      style={{ animationDuration: `${60 / Math.max(1, bpm)}s` }}
+      aria-hidden
+    />
+  );
+}
+
 const seed = (): ChatMessage[] => [
   {
     id: uid(),
@@ -50,13 +64,13 @@ type FaceStatus = "off" | "loading" | "ready" | "searching" | "error";
 /** Realistic iPhone-15-Pro-ish shell: titanium rail, Dynamic Island, status bar, home indicator. */
 function IphoneShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative h-[812px] w-[390px] rounded-[3.4rem] bg-zinc-950 p-[3px] shadow-[0_0_0_2px_#3f3f46,0_30px_70px_-12px_rgba(0,0,0,0.7)]">
-      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[3.2rem] border border-zinc-800 bg-white">
+    <div className="relative h-[812px] w-[390px] rounded-[3.5rem] bg-gradient-to-b from-zinc-700 to-zinc-900 p-[10px] shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_40px_90px_-20px_rgba(0,0,0,0.85)]">
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[2.9rem] bg-white ring-1 ring-black/40">
         {/* dynamic island */}
         <div className="pointer-events-none absolute left-1/2 top-2 z-30 h-[34px] w-[120px] -translate-x-1/2 rounded-full bg-black" />
         {/* status bar */}
         <div className={cn("flex items-center justify-between px-7 pb-1 pt-3.5 text-[13px] font-semibold text-zinc-900", mono)}>
-          <span>9:41</span>
+          <span>19:05</span>
           <span className="flex items-center gap-1.5">
             <Signal size={14} strokeWidth={2.5} />
             <Wifi size={14} strokeWidth={2.5} />
@@ -347,6 +361,7 @@ export default function ChatPoc() {
     window.setTimeout(
       () => {
         setTyping(false);
+        const rbpm = sensedBpm(reactStress);
         setMessages((m) => [
           ...m,
           {
@@ -354,10 +369,13 @@ export default function ChatPoc() {
             author: "mara",
             text: MARA_REPLIES[Math.floor(Math.random() * MARA_REPLIES.length)],
             expression: sensedExpression(reactStress),
-            bpm: sensedBpm(reactStress),
+            bpm: rbpm,
             ts: Date.now(),
           },
         ]);
+        // haptic "armband": buzz two beats at the sender's heart rate
+        const beat = Math.round(60000 / rbpm);
+        navigator.vibrate?.([45, Math.max(60, beat - 45), 45]);
       },
       1100 + Math.random() * 900,
     );
@@ -373,7 +391,7 @@ export default function ChatPoc() {
   const pill = statusPill[faceStatus];
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center bg-black px-4 py-10 [background-image:radial-gradient(circle_at_50%_0,#1a1a1a,transparent_60%)]">
+    <main className="flex flex-1 flex-col items-center justify-center bg-black px-4 py-12 [background-image:radial-gradient(ellipse_at_50%_-10%,#202020,#000_55%)]">
       <IphoneShell>
         {/* app header */}
         <header className="flex items-center gap-3 border-b border-zinc-200 bg-white px-5 py-2.5">
@@ -391,7 +409,10 @@ export default function ChatPoc() {
                     {maraLast.expression.emoji} {maraLast.expression.label}
                   </span>
                   {typeof maraLast.bpm === "number" && (
-                    <Pulse bpm={maraLast.bpm} size={11} />
+                    <>
+                      <Armband bpm={maraLast.bpm} />
+                      <Pulse bpm={maraLast.bpm} size={11} />
+                    </>
                   )}
                 </>
               ) : (
@@ -456,21 +477,19 @@ export default function ChatPoc() {
                 >
                   {m.expression ? (
                     <>
-                      <span
-                        className={cn(
-                          "rounded-full border px-1.5 py-0.5 font-medium",
-                          m.expression.tone,
-                        )}
-                      >
+                      <span className="rounded-full border border-zinc-200 bg-white px-1.5 py-0.5 font-medium text-zinc-600">
                         {m.expression.emoji} {m.expression.label}
                         {typeof m.confidence === "number" &&
-                          ` ${Math.round(m.confidence * 100)}%`}
+                          ` · ${Math.round(m.confidence * 100)}%`}
                       </span>
                       {typeof m.bpm === "number" && <Pulse bpm={m.bpm} size={11} />}
                     </>
                   ) : (
                     <span className="italic opacity-70">no signal shared</span>
                   )}
+                  <span className="opacity-50" suppressHydrationWarning>
+                    {fmtTime(m.ts)}
+                  </span>
                 </div>
               </div>
             );
@@ -595,12 +614,17 @@ export default function ChatPoc() {
       <canvas ref={canvasRef} className="hidden" />
       <canvas ref={sampleRef} className="hidden" />
 
-      <p className={cn("mt-6 max-w-[390px] text-center text-[11px] leading-relaxed text-zinc-500", mono)}>
-        CAMERA ON → each message ships a real still, the expression face-api reads
-        on-device, and a heart rate estimated from skin colour (rPPG). CAMERA OFF →
-        slider simulates the sensor. PRIVATE → text only — the control the original
-        canvas (&ldquo;2 cameras on → no control&rdquo;) never had.
-      </p>
+      <div className="mt-8 w-[390px] border-t border-zinc-800 pt-4">
+        <p className={cn("text-center text-[10px] uppercase tracking-[0.2em] text-zinc-600", mono)}>
+          MMI2 · CSCW · Emotion-Aware Chat PoC
+        </p>
+        <p className={cn("mt-2 text-center text-[11px] leading-relaxed text-zinc-500", mono)}>
+          CAMERA ON → real still + on-device face-api expression + rPPG heart
+          rate per message. CAMERA OFF → slider simulates the sensor. PRIVATE →
+          text only, the control the canvas (&ldquo;2 cameras on → no
+          control&rdquo;) never had.
+        </p>
+      </div>
     </main>
   );
 }
