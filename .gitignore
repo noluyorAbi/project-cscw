@@ -43,3 +43,16 @@ next-env.d.ts
 # local
 .remember/
 project-cscw-qr.png
+
+# ruflo runtime artifacts (stateful, regenerated)
+.swarm/memory.db
+.swarm/memory.db-shm
+.swarm/memory.db-wal
+agentdb.rvf
+agentdb.rvf.lock
+.claude/scheduled_tasks.lock
+.claude-flow/
+.hive-mind/
+ruvector.db
+ruvector.db-shm
+ruvector.db-wal
